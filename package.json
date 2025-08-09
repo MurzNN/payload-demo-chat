@@ -24,6 +24,7 @@
     "@payloadcms/richtext-lexical": "3.49.1",
     "@payloadcms/ui": "3.49.1",
     "@radix-ui/react-slot": "^1.2.3",
+    "@tabler/icons-react": "^3.34.1",
     "@tailwindcss/postcss": "^4.1.11",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
