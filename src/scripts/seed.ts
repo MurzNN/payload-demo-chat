@@ -6,6 +6,6 @@ import { seedInitialData } from './seed-initial-data'
 dotenv.config()
 const payload = await getPayload({ config })
 
-await seedInitialData(payload)
+await seedInitialData({ payload, force: true })
 
 process.exit(0)

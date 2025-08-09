@@ -1,71 +1,80 @@
-export const seedInitialData = async (payload) => {
-  if ((await payload.count({ collection: 'users' }).then((result) => result.totalDocs)) === 0) {
-    await payload.create({
+import { collectMeta } from 'next/dist/build/utils'
+import { C } from 'vitest/dist/chunks/reporters.d.DL9pg5DB.js'
+
+export const seedInitialData = async ({ payload, force }) => {
+  if (force) {
+    payload.logger.info('Clearing previous data.')
+    await payload.delete({
       collection: 'users',
-      data: {
-        name: 'Admin',
-        email: process.env.PAYLOAD_USER_ADMIN_EMAIL,
-        password: process.env.PAYLOAD_USER_ADMIN_PASSWORD,
-      },
+      where: {},
     })
-    payload.logger.info(`Created admin user: ${process.env.PAYLOAD_USER_ADMIN_EMAIL}`)
-    await payload.create({
-      collection: 'users',
-      data: {
-        name: 'System User',
-        email: process.env.PAYLOAD_USER_SYSTEM_EMAIL,
-        password: process.env.PAYLOAD_USER_SYSTEM_PASSWORD,
-      },
+    await payload.delete({
+      collection: 'chats',
+      where: {},
     })
-    payload.logger.info(`Created system user: ${process.env.PAYLOAD_USER_SYSTEM_EMAIL}`)
+    await payload.delete({
+      collection: 'chat-messages',
+      where: {},
+    })
   }
 
-  if ((await payload.count({ collection: 'chats' }).then((result) => result.totalDocs)) === 0) {
-    const userAdmin = await payload
-      .find({
-        collection: 'users',
-        where: {
-          email: process.env.PAYLOAD_USER_ADMIN_EMAIL,
-        },
-        limit: 1,
-      })
-      .then((res) => res.docs[0])
-    const userSystem = await payload
-      .find({
-        collection: 'users',
-        where: {
-          email: process.env.PAYLOAD_USER_SYSTEM_EMAIL,
-        },
-        limit: 1,
-      })
-      .then((res) => res.docs[0])
+  if ((await payload.count({ collection: 'users' })).totalDocs > 0) {
+    payload.logger.info('Users collection is not empty, skipping seeding.')
+    return
+  }
 
-    for (let i = 0; i < 5; i++) {
-      const chat = await payload.create({
-        collection: 'chats',
-        data: {
-          title: 'A chat ' + Math.random().toString(36).substring(7),
-        },
-      })
-      payload.logger.info(`Created chat id ${chat.id}: ${chat.title}`)
+  const userAdmin = await payload.create({
+    collection: 'users',
+    data: {
+      name: 'Admin',
+      email: process.env.PAYLOAD_USER_ADMIN_EMAIL,
+      password: process.env.PAYLOAD_USER_ADMIN_PASSWORD,
+    },
+  })
+  payload.logger.info(`Created admin user: ${process.env.PAYLOAD_USER_ADMIN_EMAIL}`)
 
+  const userSystem = await payload.create({
+    collection: 'users',
+    data: {
+      name: 'System User',
+      email: process.env.PAYLOAD_USER_SYSTEM_EMAIL,
+      password: process.env.PAYLOAD_USER_SYSTEM_PASSWORD,
+    },
+  })
+
+  const usersCount = 3
+  const users = {}
+  for (let i = 1; i <= usersCount; i++) {
+    users[i] = await payload.create({
+      collection: 'users',
+      data: {
+        name: `User ${i}`,
+        email: `user${i}@example.com`,
+        password: `password${i}`,
+      },
+    })
+  }
+  const chatCount = 4
+  for (let i = 1; i <= chatCount; i++) {
+    const chat = await payload.create({
+      collection: 'chats',
+      data: {
+        title: 'Chat ' + Math.random().toString(36).substring(7),
+      },
+    })
+
+    const messageCount = 3
+    for (let j = 1; j <= messageCount; j++) {
+      const randUser = users[Math.floor(Math.random() * usersCount) + 1]
       await payload.create({
         collection: 'chat-messages',
         data: {
           chat: chat.id,
-          user: userSystem.id,
-          content: 'Hello world!',
+          user: randUser.id,
+          content: `Message ${j} - ` + Math.random().toString(36).substring(7),
         },
       })
-      await payload.create({
-        collection: 'chat-messages',
-        data: {
-          chat: chat.id,
-          user: userAdmin.id,
-          content: 'Hi there! ' + Math.random().toString(36).substring(7),
-        },
-      })
-      payload.logger.info(`Created starting messages.`)
     }
   }
+  payload.logger.info(`Initial data seeded.`)
 }
