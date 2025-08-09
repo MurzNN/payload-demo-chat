@@ -1,7 +1,7 @@
 {
-  "name": "plb2",
+  "name": "payload-demo-chat",
   "version": "1.0.0",
-  "description": "A blank template to get started with Payload 3.0",
+  "description": "A Payload 3.0 demo with a basic chat functionality.",
   "license": "MIT",
   "type": "module",
   "scripts": {
