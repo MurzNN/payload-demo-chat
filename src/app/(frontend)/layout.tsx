@@ -13,7 +13,10 @@ export default async function RootLayout(props: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <Badge variant="destructive">Test badge on the layout</Badge>
+        <h1>
+          My chat app:&nbsp;
+          <a href="/chats">Chats</a>
+        </h1>
         <main>{children}</main>
       </body>
     </html>

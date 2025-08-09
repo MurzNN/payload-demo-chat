@@ -17,7 +17,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useRef, useState } from 'react'
 
 export function Chat({ messages }) {
-  console.log(messages)
+  // console.log(messages)
   return (
     <Card className="@container/card to-card">
       <CardHeader>

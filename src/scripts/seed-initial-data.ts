@@ -20,9 +20,7 @@ export const seedInitialData = async (payload) => {
     payload.logger.info(`Created system user: ${process.env.PAYLOAD_USER_SYSTEM_EMAIL}`)
   }
 
-  if (
-    (await payload.count({ collection: 'chat-messages' }).then((result) => result.totalDocs)) === 0
-  ) {
+  if ((await payload.count({ collection: 'chats' }).then((result) => result.totalDocs)) === 0) {
     const userAdmin = await payload
       .find({
         collection: 'users',
@@ -42,20 +40,32 @@ export const seedInitialData = async (payload) => {
       })
       .then((res) => res.docs[0])
 
-    await payload.create({
-      collection: 'chat-messages',
-      data: {
-        user: userSystem.id,
-        content: 'Hello world!',
-      },
-    })
-    await payload.create({
-      collection: 'chat-messages',
-      data: {
-        user: userAdmin.id,
-        content: 'Hi there!',
-      },
-    })
-    payload.logger.info(`Created starting messages.`)
+    for (let i = 0; i < 5; i++) {
+      const chat = await payload.create({
+        collection: 'chats',
+        data: {
+          title: 'A chat ' + Math.random().toString(36).substring(7),
+        },
+      })
+      payload.logger.info(`Created chat id ${chat.id}: ${chat.title}`)
+
+      await payload.create({
+        collection: 'chat-messages',
+        data: {
+          chat: chat.id,
+          user: userSystem.id,
+          content: 'Hello world!',
+        },
+      })
+      await payload.create({
+        collection: 'chat-messages',
+        data: {
+          chat: chat.id,
+          user: userAdmin.id,
+          content: 'Hi there! ' + Math.random().toString(36).substring(7),
+        },
+      })
+      payload.logger.info(`Created starting messages.`)
+    }
   }
 }

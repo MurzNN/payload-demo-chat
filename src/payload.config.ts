@@ -11,6 +11,7 @@ import { Users } from './collections/Users'
 import { Media } from './collections/Media'
 import { ChatMessages } from './collections/ChatMessages'
 import { seedInitialData } from '@/scripts/seed-initial-data'
+import { Chats } from './collections/Chats'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -22,7 +23,7 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [Users, Media, ChatMessages],
+  collections: [Users, Media, Chats, ChatMessages],
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || '',
   typescript: {
