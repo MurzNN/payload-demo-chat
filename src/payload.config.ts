@@ -13,6 +13,11 @@ import { ChatMessages } from './collections/ChatMessages'
 import { seedInitialData } from '@/scripts/seed-initial-data'
 import { Chats } from './collections/Chats'
 
+import { en } from '@payloadcms/translations/languages/en'
+import { fr } from '@payloadcms/translations/languages/fr'
+import { de } from '@payloadcms/translations/languages/de'
+import { customTranslations } from './custom-translations'
+
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
@@ -39,6 +44,15 @@ export default buildConfig({
     payloadCloudPlugin(),
     // storage-adapter-placeholder
   ],
+  i18n: {
+    fallbackLanguage: 'en',
+    supportedLanguages: { en, fr, de },
+    translations: customTranslations,
+  },
+  localization: {
+    locales: ['en', 'fr', 'de'],
+    defaultLocale: 'en',
+  },
   onInit: async (payload) => {
     await seedInitialData({ payload })
   },

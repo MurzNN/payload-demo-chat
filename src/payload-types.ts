@@ -90,7 +90,7 @@ export interface Config {
   };
   globals: {};
   globalsSelect: {};
-  locale: null;
+  locale: 'en' | 'fr' | 'de';
   user: User & {
     collection: 'users';
   };
