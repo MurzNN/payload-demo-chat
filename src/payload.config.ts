@@ -36,4 +36,27 @@ export default buildConfig({
     payloadCloudPlugin(),
     // storage-adapter-placeholder
   ],
+  onInit: async (payload) => {
+    if (process.env.PAYLOAD_ADMIN_EMAIL && process.env.PAYLOAD_ADMIN_PASSWORD) {
+      if (
+        (await payload
+          .count({
+            collection: 'users',
+            where: {
+              email: process.env.PAYLOAD_ADMIN_EMAIL,
+            },
+          })
+          .then((result) => result.totalDocs)) === 0
+      ) {
+        await payload.create({
+          collection: 'users',
+          data: {
+            email: process.env.PAYLOAD_ADMIN_EMAIL,
+            password: process.env.PAYLOAD_ADMIN_PASSWORD,
+          },
+        })
+        payload.logger.info(`Created admin user: ${process.env.PAYLOAD_ADMIN_EMAIL}`)
+      }
+    }
+  },
 })
