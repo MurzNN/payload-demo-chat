@@ -1,31 +1,38 @@
 import { headers as getHeaders } from 'next/headers.js'
 import React from 'react'
 
-import { Chat } from '@/components/chat'
-import { container } from '@/container'
+import { Chat } from '@/components/chat/chat'
+import { ChatList } from '@/components/chat/chat-list'
+import { getContainer } from '@/container'
+import { getChatController } from '@/lib/lazy-services'
 import { asValue } from 'awilix'
-import { ChatList } from '@/components/chat-list'
-import { ChatController } from '@/services/chat-controller'
+import type { PaginatedDocs } from 'payload'
+import type { Chat as ChatType } from '@/payload-types'
 
-export default async function Chats({ params }) {
+export default async function Chats({ params }: { params: Promise<{ chatId: string }> }) {
   const { chatId } = await params
   console.log('Loading chat with id', chatId)
   const headers = await getHeaders()
-  const payload = container.cradle.payload
+  const rootContainer = await getContainer()
+  const payload = rootContainer.cradle.payload
   const { user } = await payload.auth({ headers })
-  const ctxContainer = container.createScope()
+
+  // Create scoped container for this request
+  const ctxContainer = rootContainer.createScope()
   ctxContainer.register({
     ctxChatId: asValue(chatId),
     ctxUserId: asValue(user?.id),
   })
-  const chatController: ChatController = ctxContainer.cradle.chatController
+
+  // Use lazy service loading - only initializes when first used
+  const chatController = await getChatController()
   const messages = await chatController.getMessages()
 
   const chats = await payload
     .find({
       collection: 'chats',
     })
-    .then((res) => res.docs)
+    .then((res: PaginatedDocs<ChatType>) => res.docs)
 
   return (
     <div className="content p-10">
@@ -34,7 +41,12 @@ export default async function Chats({ params }) {
           <ChatList chats={chats} chatActive={chatId} />
         </div>
         <div className="col-span-10">
-          <Chat messages={messages} />
+          <Chat
+            messages={messages}
+            chatId={chatId}
+            userId={user?.id}
+            currentUserName={user?.name}
+          />
         </div>
       </div>
     </div>

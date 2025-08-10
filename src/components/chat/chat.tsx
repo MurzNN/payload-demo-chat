@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { ChatInput } from './chat-input'
-import { useRealtimeMessages } from '@/hooks/use-realtime-messages'
+import { useRealtimeMessages } from '@/hooks'
 import type { Message } from '@/types/chat'
 
 interface ChatProps {

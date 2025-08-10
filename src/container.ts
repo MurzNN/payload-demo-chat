@@ -2,67 +2,134 @@ import config from '@payload-config'
 import dotenv from 'dotenv'
 import { getPayload } from 'payload'
 import { AwilixManager } from 'awilix-manager'
-import { asClass, asValue, createContainer } from 'awilix'
+import { asClass, asValue, createContainer, type AwilixContainer } from 'awilix'
 import { ChatSpammer } from './services/chat-spammer'
 import { ChatController } from './services/chat-controller'
 
-const container = createContainer({
-  injectionMode: 'PROXY',
-})
+// Lazy initialization manager
+class LazyServiceManager {
+  private initializedServices = new Set<string>()
+  private container: AwilixContainer
 
-// @todo Task 1 start: Rework this to initialize in a service directly
-dotenv.config()
-const payload = await getPayload({ config })
+  constructor(container: AwilixContainer) {
+    this.container = container
+  }
 
-const systemUser = await payload
-  .find({
-    collection: 'users',
-    where: {
-      email: {
-        equals: process.env.PAYLOAD_USER_SYSTEM_EMAIL,
+  async initializeService(serviceName: string): Promise<void> {
+    if (this.initializedServices.has(serviceName)) {
+      return
+    }
+
+    const registration = this.container.registrations[serviceName]
+    if (registration && registration.asyncInit) {
+      console.log(`🔄 Lazy initializing service: ${serviceName}`)
+      const instance = this.container.resolve(serviceName)
+      if (typeof instance[registration.asyncInit] === 'function') {
+        await instance[registration.asyncInit]()
+      }
+      this.initializedServices.add(serviceName)
+      console.log(`✅ Service initialized: ${serviceName}`)
+    }
+  }
+
+  isServiceInitialized(serviceName: string): boolean {
+    return this.initializedServices.has(serviceName)
+  }
+
+  getInitializedServices(): string[] {
+    return Array.from(this.initializedServices)
+  }
+}
+
+// Ensure TypeScript knows about our global cache (avoids duplicate containers in dev/HMR)
+declare global {
+  // eslint-disable-next-line no-var
+  var __appContainerPromise: Promise<AwilixContainer<any>> | undefined
+  // eslint-disable-next-line no-var
+  var __appLazyManager: LazyServiceManager | undefined
+}
+
+async function buildContainer(): Promise<AwilixContainer<any>> {
+  console.log('🏗️ Building new container instance at:', new Date().toISOString())
+  const container = createContainer({ injectionMode: 'PROXY' })
+
+  // @todo Task 1 start: Rework this to initialize in a service directly
+  dotenv.config()
+  const payload = await getPayload({ config })
+
+  const systemUser = await payload
+    .find({
+      collection: 'users',
+      where: {
+        email: {
+          equals: process.env.PAYLOAD_USER_SYSTEM_EMAIL,
+        },
       },
-    },
-  })
-  .then((res) => res.docs[0])
+    })
+    .then((res) => res.docs[0])
 
-container.register('payload', asValue(payload))
-container.register('systemUser', asValue(systemUser))
-// Task 1 end.
+  container.register('payload', asValue(payload))
+  container.register('systemUser', asValue(systemUser))
+  // Task 1 end.
 
-container.register(
-  'chatController',
-  asClass(ChatController, {
-    lifetime: 'TRANSIENT',
-    asyncInitPriority: 10, // lower value means its initted earlier
-    asyncDisposePriority: 10, // lower value means its disposed earlier
-    asyncInit: 'init',
-    asyncDispose: 'dispose',
-    eagerInject: true, // this will be constructed and cached immediately. Redundant for resolves with `asyncInit` parameter set, as that is always resolved eagerly. If a string is passed, then additional synchronous method will be invoked in addition to constructor on injection.
-  }),
-)
-container.register('ctxChatId', asValue(undefined))
-container.register('ctxUserId', asValue(undefined))
-container.register(
-  'chatSpammer',
-  asClass(ChatSpammer, {
-    lifetime: 'SINGLETON',
-    asyncInitPriority: 10, // lower value means its initted earlier
-    asyncDisposePriority: 10, // lower value means its disposed earlier
-    asyncInit: 'init',
-    asyncDispose: 'dispose',
-    eagerInject: true, // this will be constructed and cached immediately. Redundant for resolves with `asyncInit` parameter set, as that is always resolved eagerly. If a string is passed, then additional synchronous method will be invoked in addition to constructor on injection.
-  }),
-)
+  container.register(
+    'chatController',
+    asClass(ChatController, {
+      lifetime: 'TRANSIENT',
+      asyncInitPriority: 10,
+      asyncDisposePriority: 10,
+      asyncInit: 'init',
+      asyncDispose: 'dispose',
+      eagerInject: false, // Changed to false for lazy loading
+    }),
+  )
+  container.register('ctxChatId', asValue(undefined))
+  container.register('ctxUserId', asValue(undefined))
+  container.register(
+    'chatSpammer',
+    asClass(ChatSpammer, {
+      lifetime: 'SINGLETON',
+      asyncInitPriority: 10,
+      asyncDisposePriority: 10,
+      asyncInit: 'init',
+      asyncDispose: 'dispose',
+      eagerInject: false, // Changed to false for lazy loading
+    }),
+  )
 
-const awilixManager = new AwilixManager({
-  diContainer: container,
-  asyncInit: true,
-  asyncDispose: true,
-  strictBooleanEnforced: true,
-})
+  // Store lazy manager globally
+  globalThis.__appLazyManager = new LazyServiceManager(container)
 
-export { container }
+  return container
+}
 
-export const initContainerManager = async () => {
-  await awilixManager.executeInit()
+export async function getContainer(): Promise<AwilixContainer<any>> {
+  if (!globalThis.__appContainerPromise) {
+    globalThis.__appContainerPromise = buildContainer()
+  }
+  return globalThis.__appContainerPromise
+}
+
+// For compatibility with existing imports
+export const container = await getContainer()
+
+export const initContainerManager = async (): Promise<void> => {
+  // For lazy loading, we don't run executeInit() here
+  // Services will be initialized on demand
+  console.log('🔄 Container manager ready for lazy initialization')
+}
+
+export async function initializeServiceOnDemand(serviceName: string): Promise<void> {
+  if (!globalThis.__appLazyManager) {
+    throw new Error('Lazy service manager not initialized')
+  }
+  await globalThis.__appLazyManager.initializeService(serviceName)
+}
+
+export function isServiceInitialized(serviceName: string): boolean {
+  return globalThis.__appLazyManager?.isServiceInitialized(serviceName) || false
+}
+
+export function getInitializedServices(): string[] {
+  return globalThis.__appLazyManager?.getInitializedServices() || []
 }

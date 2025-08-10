@@ -1,27 +1,34 @@
 import { headers as getHeaders } from 'next/headers.js'
-import { getPayload } from 'payload'
 import React from 'react'
+import type { PaginatedDocs } from 'payload'
 
-import config from '@/payload.config'
-import { Chat } from '@/components/chat'
-import { container } from '@/container'
-import { asClass, asValue, createContainer } from 'awilix'
-import { ChatList } from '@/components/chat-list'
+import { getContainer } from '@/container'
+import { ChatList } from '@/components/chat/chat-list'
+import { CreateChatForm } from '@/components/chat/create-chat-form'
+import type { Chat } from '@/payload-types'
 
 export default async function Chats() {
   const headers = await getHeaders()
+  const container = await getContainer()
   const payload = container.cradle.payload
-  const { user } = await payload.auth({ headers })
+  const { user: _user } = await payload.auth({ headers })
 
   const chats = await payload
     .find({
       collection: 'chats',
     })
-    .then((res) => res.docs)
+    .then((res: PaginatedDocs<Chat>) => res.docs)
 
   return (
     <div className="content p-10">
-      <ChatList chats={chats} />
+      <div className="grid grid-cols-12 gap-6">
+        <div className="col-span-8">
+          <ChatList chats={chats} chatActive={undefined} />
+        </div>
+        <div className="col-span-4">
+          <CreateChatForm />
+        </div>
+      </div>
     </div>
   )
 }
