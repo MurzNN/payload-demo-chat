@@ -9,9 +9,13 @@ import { ChatController } from './services/chat-controller'
 class LazyServiceManager {
   private initializedServices = new Set<string>()
   private container: AwilixContainer
+  private initMethods = new Map<string, string>()
 
   constructor(container: AwilixContainer) {
     this.container = container
+    // Define which services have init methods
+    this.initMethods.set('chatController', 'init')
+    this.initMethods.set('chatSpammer', 'init')
   }
 
   async initializeService(serviceName: string): Promise<void> {
@@ -19,12 +23,12 @@ class LazyServiceManager {
       return
     }
 
-    const registration = this.container.registrations[serviceName]
-    if (registration && registration.asyncInit) {
+    const initMethod = this.initMethods.get(serviceName)
+    if (initMethod) {
       console.log(`🔄 Lazy initializing service: ${serviceName}`)
       const instance = this.container.resolve(serviceName)
-      if (typeof instance[registration.asyncInit] === 'function') {
-        await instance[registration.asyncInit]()
+      if (typeof instance[initMethod] === 'function') {
+        await instance[initMethod]()
       }
       this.initializedServices.add(serviceName)
       console.log(`✅ Service initialized: ${serviceName}`)
@@ -42,9 +46,8 @@ class LazyServiceManager {
 
 // Ensure TypeScript knows about our global cache (avoids duplicate containers in dev/HMR)
 declare global {
-  // eslint-disable-next-line no-var
   var __appContainerPromise: Promise<AwilixContainer<any>> | undefined
-  // eslint-disable-next-line no-var
+
   var __appLazyManager: LazyServiceManager | undefined
 }
 
@@ -75,11 +78,6 @@ async function buildContainer(): Promise<AwilixContainer<any>> {
     'chatController',
     asClass(ChatController, {
       lifetime: 'TRANSIENT',
-      asyncInitPriority: 10,
-      asyncDisposePriority: 10,
-      asyncInit: 'init',
-      asyncDispose: 'dispose',
-      eagerInject: false, // Changed to false for lazy loading
     }),
   )
   container.register('ctxChatId', asValue(undefined))
@@ -88,11 +86,6 @@ async function buildContainer(): Promise<AwilixContainer<any>> {
     'chatSpammer',
     asClass(ChatSpammer, {
       lifetime: 'SINGLETON',
-      asyncInitPriority: 10,
-      asyncDisposePriority: 10,
-      asyncInit: 'init',
-      asyncDispose: 'dispose',
-      eagerInject: false, // Changed to false for lazy loading
     }),
   )
 

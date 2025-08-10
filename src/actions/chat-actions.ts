@@ -3,7 +3,6 @@
 import { getContainer } from '@/container'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import type { Chat, ChatMessage } from '@/payload-types'
 
 // Import the broadcast function
 import { broadcastToChat } from '@/app/api/chat/[chatId]/stream/route'

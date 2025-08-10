@@ -1,8 +1,10 @@
 import { Payload } from 'payload'
+import { User, ChatMessage } from '@/payload-types'
+import { Message } from '@/types/chat'
 
 export class ChatController {
   private payload: Payload
-  private ctxChatId: string
+  private ctxChatId: number
   private ctxUserId: string
 
   constructor({
@@ -11,7 +13,7 @@ export class ChatController {
     ctxUserId,
   }: {
     payload: Payload
-    ctxChatId: string
+    ctxChatId: number
     ctxUserId: string
   }) {
     this.payload = payload
@@ -27,7 +29,7 @@ export class ChatController {
     // dispose logic
   }
 
-  async getMessages(): Promise<any[]> {
+  async getMessages(): Promise<Message[]> {
     console.log('loading messages for id', this.ctxChatId)
     const messagesDocs = await this.payload
       .find({
@@ -40,30 +42,32 @@ export class ChatController {
         sort: '-createdAt',
         limit: 20,
       })
-      .then((res) => res.docs)
+      .then((res) => res.docs as ChatMessage[])
 
-    const user = this.payload.findByID({
+    const user = (await this.payload.findByID({
       collection: 'users',
       id: 1,
-    })
+    })) as User
 
     messagesDocs.reverse()
-    const messages = messagesDocs.map((doc) => ({
-      id: doc.id,
-      content: doc.content,
-      createdAt: doc.createdAt,
-      userName: doc.user?.name ?? 'anonymous',
-      role: doc.user?.id == user?.id ? 'own' : 'remote',
-    }))
+    const messages = messagesDocs.map(
+      (doc): Message => ({
+        id: doc.id.toString(),
+        content: doc.content,
+        createdAt: doc.createdAt,
+        userName: typeof doc.user === 'object' && doc.user?.name ? doc.user.name : 'anonymous',
+        role: typeof doc.user === 'object' && doc.user?.id === user?.id ? 'own' : 'remote',
+      }),
+    )
 
     return messages
   }
 
-  async postMessage(userId, content): Promise<void> {
+  async postMessage(userId: number, content: string): Promise<void> {
     await this.payload.create({
       collection: 'chat-messages',
       data: {
-        chat: this.ctxUserId,
+        chat: this.ctxChatId,
         user: userId,
         content: content,
       },

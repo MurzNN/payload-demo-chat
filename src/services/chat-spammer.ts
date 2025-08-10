@@ -1,7 +1,5 @@
-import { getLocalI18n, Payload } from 'payload'
-import { randomUUID } from 'crypto'
+import { Payload } from 'payload'
 import { User } from '@/payload-types'
-import { AcceptedLanguages, I18n, SupportedLanguages, TFunction } from '@payloadcms/translations'
 import { ChatController } from './chat-controller'
 
 export class ChatSpammer {
@@ -33,10 +31,9 @@ export class ChatSpammer {
   }
 
   async postSpamMessage(): Promise<void> {
-    const chatId = 1
-    this.chatController.postMessage(
-      chatId,
-      this.systemUser.id,
+    const userId = this.systemUser.id
+    await this.chatController.postMessage(
+      userId,
       'This is a spam message ' + Math.random().toString(36).substring(7),
     )
   }

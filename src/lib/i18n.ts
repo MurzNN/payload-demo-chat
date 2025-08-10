@@ -1,11 +1,14 @@
-import { getLocalI18n } from 'payload'
+import { getLocalI18n, SanitizedConfig } from 'payload'
 
 export type Translate = (key: string) => string
 
 // Get a translate function for a specific locale without a request
 export async function getT(locale: string): Promise<Translate> {
-  const i18n = await getLocalI18n(locale)
-  return (key: string) => i18n.t(key)
+  const i18n = await getLocalI18n({
+    config: {} as SanitizedConfig,
+    language: locale as any,
+  })
+  return (key: string) => i18n.t(key as any)
 }
 
 // Translate the same key across multiple locales

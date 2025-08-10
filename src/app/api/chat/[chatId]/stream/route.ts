@@ -1,8 +1,7 @@
-import { getContainer } from '@/container'
 import { NextRequest } from 'next/server'
 
 // Store active connections for real-time updates
-const chatConnections = new Map<string, Set<WritableStreamDefaultWriter>>()
+const chatConnections = new Map<string, Set<ReadableStreamDefaultController>>()
 
 export async function GET(request: NextRequest, { params }: { params: { chatId: string } }) {
   const { chatId } = params
@@ -12,17 +11,17 @@ export async function GET(request: NextRequest, { params }: { params: { chatId: 
   }
 
   const encoder = new TextEncoder()
-  let writer: WritableStreamDefaultWriter
+  let controller: ReadableStreamDefaultController
 
   const stream = new ReadableStream({
-    start(controller) {
-      writer = controller.getWriter()
+    start(ctrl) {
+      controller = ctrl
 
       // Add this connection to the chat room
       if (!chatConnections.has(chatId)) {
         chatConnections.set(chatId, new Set())
       }
-      chatConnections.get(chatId)!.add(writer)
+      chatConnections.get(chatId)!.add(controller)
 
       // Send initial connection message
       const welcomeMessage = {
@@ -31,12 +30,12 @@ export async function GET(request: NextRequest, { params }: { params: { chatId: 
         timestamp: new Date().toISOString(),
       }
 
-      writer.write(encoder.encode(`data: ${JSON.stringify(welcomeMessage)}\n\n`))
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify(welcomeMessage)}\n\n`))
 
       // Send keepalive every 30 seconds
       const keepAlive = setInterval(() => {
         try {
-          writer.write(encoder.encode(': keepalive\n\n'))
+          controller.enqueue(encoder.encode(': keepalive\n\n'))
         } catch (error) {
           clearInterval(keepAlive)
         }
@@ -47,7 +46,7 @@ export async function GET(request: NextRequest, { params }: { params: { chatId: 
         clearInterval(keepAlive)
         const connections = chatConnections.get(chatId)
         if (connections) {
-          connections.delete(writer)
+          connections.delete(controller)
           if (connections.size === 0) {
             chatConnections.delete(chatId)
           }
@@ -62,7 +61,7 @@ export async function GET(request: NextRequest, { params }: { params: { chatId: 
       // Cleanup when stream is cancelled
       const connections = chatConnections.get(chatId)
       if (connections) {
-        connections.delete(writer)
+        connections.delete(controller)
         if (connections.size === 0) {
           chatConnections.delete(chatId)
         }
@@ -82,7 +81,7 @@ export async function GET(request: NextRequest, { params }: { params: { chatId: 
 }
 
 // Function to broadcast message to all connections in a chat
-export function broadcastToChat(chatId: string, data: any) {
+export function broadcastToChat(chatId: string, data: Record<string, any>) {
   const connections = chatConnections.get(chatId)
   if (!connections || connections.size === 0) {
     return
@@ -93,20 +92,20 @@ export function broadcastToChat(chatId: string, data: any) {
   const encodedMessage = encoder.encode(message)
 
   // Send to all active connections
-  const deadConnections: WritableStreamDefaultWriter[] = []
+  const deadConnections: ReadableStreamDefaultController[] = []
 
-  connections.forEach((writer) => {
+  connections.forEach((controller) => {
     try {
-      writer.write(encodedMessage)
+      controller.enqueue(encodedMessage)
     } catch (error) {
       // Connection is dead, mark for removal
-      deadConnections.push(writer)
+      deadConnections.push(controller)
     }
   })
 
   // Clean up dead connections
-  deadConnections.forEach((writer) => {
-    connections.delete(writer)
+  deadConnections.forEach((controller) => {
+    connections.delete(controller)
   })
 
   // Remove chat room if no connections left
