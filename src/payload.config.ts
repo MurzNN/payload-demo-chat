@@ -40,6 +40,7 @@ export default buildConfig({
     // storage-adapter-placeholder
   ],
   onInit: async (payload) => {
-    await seedInitialData({ payload, force: true })
+    console.log('Payload onInit executed')
+    await seedInitialData({ payload, force: false })
   },
 })

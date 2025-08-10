@@ -22,11 +22,13 @@ export class ChatController {
   }
 
   async init() {
+    console.log('ChatController async init')
     // init logic
   }
 
   async dispose() {
     // dispose logic
+    console.log('ChatController async dispose')
   }
 
   async getMessages(): Promise<Message[]> {

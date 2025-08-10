@@ -23,11 +23,13 @@ export class ChatSpammer {
 
   async init() {
     // init logic
+    console.log('ChatSpammer async init')
     // await this.postSpamMessage()
   }
 
   async dispose() {
     // dispose logic
+    console.log('ChatSpammer async dispose')
   }
 
   async postSpamMessage(): Promise<void> {
