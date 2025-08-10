@@ -44,62 +44,92 @@ class LazyServiceManager {
   }
 }
 
-// Ensure TypeScript knows about our global cache (avoids duplicate containers in dev/HMR)
-declare global {
-  var __appContainerPromise: Promise<AwilixContainer<any>> | undefined
+// Singleton container manager - proper encapsulation without globals
+class ContainerSingleton {
+  private static instance: ContainerSingleton | null = null
+  private containerPromise: Promise<AwilixContainer> | null = null
+  private lazyManager: LazyServiceManager | null = null
 
-  var __appLazyManager: LazyServiceManager | undefined
-}
+  private constructor() {}
 
-async function buildContainer(): Promise<AwilixContainer<any>> {
-  console.log('🏗️ Building new container instance at:', new Date().toISOString())
-  const container = createContainer({ injectionMode: 'PROXY' })
-
-  // @todo Task 1 start: Rework this to initialize in a service directly
-  dotenv.config()
-  const payload = await getPayload({ config })
-
-  const systemUser = await payload
-    .find({
-      collection: 'users',
-      where: {
-        email: {
-          equals: process.env.PAYLOAD_USER_SYSTEM_EMAIL,
-        },
-      },
-    })
-    .then((res) => res.docs[0])
-
-  container.register('payload', asValue(payload))
-  container.register('systemUser', asValue(systemUser))
-  // Task 1 end.
-
-  container.register(
-    'chatController',
-    asClass(ChatController, {
-      lifetime: 'TRANSIENT',
-    }),
-  )
-  container.register('ctxChatId', asValue(undefined))
-  container.register('ctxUserId', asValue(undefined))
-  container.register(
-    'chatSpammer',
-    asClass(ChatSpammer, {
-      lifetime: 'SINGLETON',
-    }),
-  )
-
-  // Store lazy manager globally
-  globalThis.__appLazyManager = new LazyServiceManager(container)
-
-  return container
-}
-
-export async function getContainer(): Promise<AwilixContainer<any>> {
-  if (!globalThis.__appContainerPromise) {
-    globalThis.__appContainerPromise = buildContainer()
+  static getInstance(): ContainerSingleton {
+    if (!ContainerSingleton.instance) {
+      ContainerSingleton.instance = new ContainerSingleton()
+    }
+    return ContainerSingleton.instance
   }
-  return globalThis.__appContainerPromise
+
+  async getContainer(): Promise<AwilixContainer> {
+    if (!this.containerPromise) {
+      this.containerPromise = this.buildContainer()
+    }
+    return this.containerPromise
+  }
+
+  getLazyManager(): LazyServiceManager {
+    if (!this.lazyManager) {
+      throw new Error('Container not initialized. Call getContainer() first.')
+    }
+    return this.lazyManager
+  }
+
+  // Reset for testing
+  reset(): void {
+    this.containerPromise = null
+    this.lazyManager = null
+  }
+
+  private async buildContainer(): Promise<AwilixContainer> {
+    console.log('🏗️ Building new container instance at:', new Date().toISOString())
+    const container = createContainer({ injectionMode: 'PROXY' })
+
+    // @todo Task 1 start: Rework this to initialize in a service directly
+    dotenv.config()
+    const payload = await getPayload({ config })
+
+    const systemUser = await payload
+      .find({
+        collection: 'users',
+        where: {
+          email: {
+            equals: process.env.PAYLOAD_USER_SYSTEM_EMAIL,
+          },
+        },
+      })
+      .then((res) => res.docs[0])
+
+    container.register('payload', asValue(payload))
+    container.register('systemUser', asValue(systemUser))
+    // Task 1 end.
+
+    container.register(
+      'chatController',
+      asClass(ChatController, {
+        lifetime: 'TRANSIENT',
+      }),
+    )
+    container.register('ctxChatId', asValue(undefined))
+    container.register('ctxUserId', asValue(undefined))
+    container.register(
+      'chatSpammer',
+      asClass(ChatSpammer, {
+        lifetime: 'SINGLETON',
+      }),
+    )
+
+    // Initialize lazy manager
+    this.lazyManager = new LazyServiceManager(container)
+
+    return container
+  }
+}
+
+// Singleton instance
+const containerManager = ContainerSingleton.getInstance()
+
+// Public API - clean interface without global pollution
+export async function getContainer(): Promise<AwilixContainer> {
+  return containerManager.getContainer()
 }
 
 // For compatibility with existing imports
@@ -112,16 +142,29 @@ export const initContainerManager = async (): Promise<void> => {
 }
 
 export async function initializeServiceOnDemand(serviceName: string): Promise<void> {
-  if (!globalThis.__appLazyManager) {
-    throw new Error('Lazy service manager not initialized')
-  }
-  await globalThis.__appLazyManager.initializeService(serviceName)
+  const lazyManager = containerManager.getLazyManager()
+  await lazyManager.initializeService(serviceName)
 }
 
 export function isServiceInitialized(serviceName: string): boolean {
-  return globalThis.__appLazyManager?.isServiceInitialized(serviceName) || false
+  try {
+    const lazyManager = containerManager.getLazyManager()
+    return lazyManager.isServiceInitialized(serviceName)
+  } catch {
+    return false
+  }
 }
 
 export function getInitializedServices(): string[] {
-  return globalThis.__appLazyManager?.getInitializedServices() || []
+  try {
+    const lazyManager = containerManager.getLazyManager()
+    return lazyManager.getInitializedServices()
+  } catch {
+    return []
+  }
+}
+
+// For testing - allows clean reset
+export function resetContainer(): void {
+  containerManager.reset()
 }
