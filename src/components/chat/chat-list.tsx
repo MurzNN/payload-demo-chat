@@ -1,22 +1,14 @@
 'use client'
 
-import { IconSend2 } from '@tabler/icons-react'
-
-import { Badge } from '@/components/ui/badge'
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import { useRef, useState } from 'react'
+import { Chat } from '@/payload-types'
 
-export function ChatList({ chats, chatActive }) {
+interface ChatListProps {
+  chats: Chat[]
+  chatActive?: string
+}
+
+export function ChatList({ chats }: ChatListProps) {
   return (
     <div className="chat-list bg-gray-50 h-full p-4 rounded-lg shadow flex flex-col">
       <Button className="mb-4 w-full">New Chat</Button>
