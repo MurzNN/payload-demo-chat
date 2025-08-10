@@ -135,18 +135,22 @@ class ContainerSingleton {
     container.register('ctxChatId', asValue(undefined))
     container.register('ctxUserId', asValue(undefined))
 
-    container.register(
-      'chatController',
-      asClass(ChatController, {
-        lifetime: 'TRANSIENT',
-      }),
-    )
-    container.register(
-      'chatSpammer',
-      asClass(ChatSpammer, {
-        lifetime: 'SINGLETON',
-      }),
-    )
+    container.loadModules(['services/*.ts'], {
+      esModules: true,
+    })
+    console.log(container.registrations)
+    // container.register(
+    //   'chatController',
+    //   asClass(ChatController, {
+    //     lifetime: 'TRANSIENT',
+    //   }),
+    // )
+    // container.register(
+    //   'chatSpammer',
+    //   asClass(ChatSpammer, {
+    //     lifetime: 'SINGLETON',
+    //   }),
+    // )
 
     // Initialize lazy manager
     this.lazyManager = new LazyServiceManager(container)
