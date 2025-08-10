@@ -33,6 +33,11 @@ export class ChatController {
 
   async getMessages(): Promise<Message[]> {
     console.log('loading messages for id', this.ctxChatId)
+
+    if (!this.ctxChatId) {
+      throw new Error('ChatController: ctxChatId is required but not set')
+    }
+
     const messagesDocs = await this.payload
       .find({
         collection: 'chat-messages',

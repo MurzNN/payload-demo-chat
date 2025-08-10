@@ -3,8 +3,11 @@ import { NextRequest } from 'next/server'
 // Store active connections for real-time updates
 const chatConnections = new Map<string, Set<ReadableStreamDefaultController>>()
 
-export async function GET(request: NextRequest, { params }: { params: { chatId: string } }) {
-  const { chatId } = params
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ chatId: string }> },
+) {
+  const { chatId } = await params
 
   if (!chatId) {
     return new Response('Chat ID required', { status: 400 })

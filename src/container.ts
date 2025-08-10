@@ -44,26 +44,53 @@ class LazyServiceManager {
   }
 }
 
-// Singleton container manager - proper encapsulation without globals
+// Direct global reference - more reliable than Symbol in Next.js
+declare global {
+  var __appContainerSingleton: ContainerSingleton | undefined
+  var __appContainerPromise: Promise<AwilixContainer> | undefined
+}
+
+// Singleton container manager - prevents double initialization
 class ContainerSingleton {
-  private static instance: ContainerSingleton | null = null
   private containerPromise: Promise<AwilixContainer> | null = null
   private lazyManager: LazyServiceManager | null = null
-
-  private constructor() {}
+  private isBuilding = false
 
   static getInstance(): ContainerSingleton {
-    if (!ContainerSingleton.instance) {
-      ContainerSingleton.instance = new ContainerSingleton()
+    // Use direct global reference for better reliability
+    if (!globalThis.__appContainerSingleton) {
+      globalThis.__appContainerSingleton = new ContainerSingleton()
+      console.log('🆕 Creating new ContainerSingleton instance')
+    } else {
+      console.log('♻️ Reusing existing ContainerSingleton instance')
     }
-    return ContainerSingleton.instance
+    return globalThis.__appContainerSingleton
   }
 
   async getContainer(): Promise<AwilixContainer> {
-    if (!this.containerPromise) {
-      this.containerPromise = this.buildContainer()
+    // Use global promise for cross-module consistency
+    if (!globalThis.__appContainerPromise) {
+      console.log('🚀 Starting container initialization...')
+      this.isBuilding = true
+      try {
+        globalThis.__appContainerPromise = this.buildContainer()
+        this.containerPromise = globalThis.__appContainerPromise
+        await globalThis.__appContainerPromise // Wait for completion
+        console.log('✅ Container initialization completed')
+      } catch (error) {
+        console.error('❌ Container initialization failed:', error)
+        globalThis.__appContainerPromise = undefined
+        this.containerPromise = null
+        throw error
+      } finally {
+        this.isBuilding = false
+      }
+    } else {
+      console.log('♻️ Returning existing container')
+      this.containerPromise = globalThis.__appContainerPromise
     }
-    return this.containerPromise
+
+    return globalThis.__appContainerPromise
   }
 
   getLazyManager(): LazyServiceManager {
@@ -75,8 +102,11 @@ class ContainerSingleton {
 
   // Reset for testing
   reset(): void {
+    console.log('🔄 Resetting container for testing')
     this.containerPromise = null
     this.lazyManager = null
+    this.isBuilding = false
+    globalThis.__appContainerPromise = undefined
   }
 
   private async buildContainer(): Promise<AwilixContainer> {
@@ -124,16 +154,20 @@ class ContainerSingleton {
   }
 }
 
-// Singleton instance
-const containerManager = ContainerSingleton.getInstance()
-
 // Public API - clean interface without global pollution
 export async function getContainer(): Promise<AwilixContainer> {
+  const containerManager = ContainerSingleton.getInstance()
   return containerManager.getContainer()
 }
 
-// For compatibility with existing imports
-export const container = await getContainer()
+// For compatibility with existing imports - lazy initialization
+let _containerCache: Promise<AwilixContainer> | null = null
+export const container = (() => {
+  if (!_containerCache) {
+    _containerCache = getContainer()
+  }
+  return _containerCache
+})()
 
 export const initContainerManager = async (): Promise<void> => {
   // For lazy loading, we don't run executeInit() here
@@ -142,12 +176,14 @@ export const initContainerManager = async (): Promise<void> => {
 }
 
 export async function initializeServiceOnDemand(serviceName: string): Promise<void> {
+  const containerManager = ContainerSingleton.getInstance()
   const lazyManager = containerManager.getLazyManager()
   await lazyManager.initializeService(serviceName)
 }
 
 export function isServiceInitialized(serviceName: string): boolean {
   try {
+    const containerManager = ContainerSingleton.getInstance()
     const lazyManager = containerManager.getLazyManager()
     return lazyManager.isServiceInitialized(serviceName)
   } catch {
@@ -157,6 +193,7 @@ export function isServiceInitialized(serviceName: string): boolean {
 
 export function getInitializedServices(): string[] {
   try {
+    const containerManager = ContainerSingleton.getInstance()
     const lazyManager = containerManager.getLazyManager()
     return lazyManager.getInitializedServices()
   } catch {
@@ -166,5 +203,8 @@ export function getInitializedServices(): string[] {
 
 // For testing - allows clean reset
 export function resetContainer(): void {
+  const containerManager = ContainerSingleton.getInstance()
   containerManager.reset()
+  _containerCache = null // Reset cache too
+  globalThis.__appContainerSingleton = undefined
 }

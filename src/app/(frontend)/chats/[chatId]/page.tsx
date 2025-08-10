@@ -3,9 +3,8 @@ import React from 'react'
 
 import { Chat } from '@/components/chat/chat'
 import { ChatList } from '@/components/chat/chat-list'
-import { getContainer } from '@/container'
-import { getChatController } from '@/lib/lazy-services'
-import { asValue } from 'awilix'
+import { getChatControllerFactory } from '@/services/service-container'
+import { getPayloadInstance } from '@/services/service-container'
 import type { PaginatedDocs } from 'payload'
 import type { Chat as ChatType } from '@/payload-types'
 
@@ -13,19 +12,24 @@ export default async function Chats({ params }: { params: Promise<{ chatId: stri
   const { chatId } = await params
   console.log('Loading chat with id', chatId)
   const headers = await getHeaders()
-  const rootContainer = await getContainer()
-  const payload = rootContainer.cradle.payload
+
+  // ✅ NEW: Use factory pattern following Alexey's approach
+  const payload = await getPayloadInstance()
   const { user } = await payload.auth({ headers })
 
-  // Create scoped container for this request
-  const ctxContainer = rootContainer.createScope()
-  ctxContainer.register({
-    ctxChatId: asValue(chatId),
-    ctxUserId: asValue(user?.id),
-  })
+  // Parse chatId to number (Payload IDs are typically numbers)
+  const chatIdNum = parseInt(chatId, 10)
+  if (isNaN(chatIdNum)) {
+    throw new Error(`Invalid chat ID: ${chatId}`)
+  }
 
-  // Use lazy service loading - only initializes when first used
-  const chatController = await getChatController()
+  // ✅ NEW: Get factory with all dependencies auto-injected
+  const chatControllerFactory = await getChatControllerFactory()
+
+  // ✅ NEW: Create scoped controller instance (like Alexey's get(user))
+  const chatController = chatControllerFactory.get(chatIdNum, user?.id)
+  await chatController.asyncInit() // Initialize user context
+
   const messages = await chatController.getMessages()
 
   const chats = await payload
@@ -44,8 +48,8 @@ export default async function Chats({ params }: { params: Promise<{ chatId: stri
           <Chat
             messages={messages}
             chatId={chatId}
-            userId={user?.id}
-            currentUserName={user?.name}
+            userId={user?.id?.toString()}
+            currentUserName={user?.name || undefined}
           />
         </div>
       </div>

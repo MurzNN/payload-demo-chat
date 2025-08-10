@@ -1,6 +1,6 @@
 'use server'
 
-import { getContainer } from '@/container'
+import { getChatControllerFactory, getPayloadInstance } from '@/services/service-container'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
@@ -9,9 +9,6 @@ import { broadcastToChat } from '@/app/api/chat/[chatId]/stream/route'
 
 export async function createChatMessage(formData: FormData) {
   try {
-    const container = await getContainer()
-    const payload = container.cradle.payload
-
     const content = formData.get('content') as string
     const chatId = formData.get('chatId') as string
     const userId = formData.get('userId') as string
@@ -23,16 +20,24 @@ export async function createChatMessage(formData: FormData) {
       }
     }
 
-    const result = await payload.create({
-      collection: 'chat-messages',
-      data: {
-        content: content.trim(),
-        chat: chatId,
-        user: userId,
-      },
-    })
+    // Parse chatId to number
+    const chatIdNum = parseInt(chatId, 10)
+    if (isNaN(chatIdNum)) {
+      return {
+        success: false,
+        error: 'Invalid chat ID',
+      }
+    }
+
+    // ✅ NEW: Use factory pattern following Alexey's approach
+    const chatControllerFactory = await getChatControllerFactory()
+    const chatController = chatControllerFactory.get(chatIdNum, userId)
+    await chatController.asyncInit()
+
+    const result = await chatController.postMessage(content)
 
     // Get user info for real-time broadcast
+    const payload = await getPayloadInstance()
     const user = await payload.findByID({
       collection: 'users',
       id: userId,
@@ -69,8 +74,7 @@ export async function createChatMessage(formData: FormData) {
 
 export async function createChat(formData: FormData) {
   try {
-    const container = await getContainer()
-    const payload = container.cradle.payload
+    const payload = await getPayloadInstance()
 
     const title = formData.get('title') as string
 
@@ -104,13 +108,20 @@ export async function createChat(formData: FormData) {
 
 export async function deleteChatMessage(messageId: string, chatId: string) {
   try {
-    const container = await getContainer()
-    const payload = container.cradle.payload
+    // Parse chatId to number
+    const chatIdNum = parseInt(chatId, 10)
+    if (isNaN(chatIdNum)) {
+      return {
+        success: false,
+        error: 'Invalid chat ID',
+      }
+    }
 
-    await payload.delete({
-      collection: 'chat-messages',
-      id: messageId,
-    })
+    // ✅ NEW: Use factory pattern
+    const chatControllerFactory = await getChatControllerFactory()
+    const chatController = chatControllerFactory.get(chatIdNum)
+
+    await chatController.deleteMessage(messageId)
 
     // Revalidate the chat page
     revalidatePath(`/chats/${chatId}`)
