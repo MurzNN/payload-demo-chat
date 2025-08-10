@@ -1,7 +1,6 @@
 import config from '@payload-config'
 import dotenv from 'dotenv'
 import { getPayload } from 'payload'
-import { AwilixManager } from 'awilix-manager'
 import { asClass, asValue, createContainer, type AwilixContainer } from 'awilix'
 import { ChatSpammer } from './services/chat-spammer'
 import { ChatController } from './services/chat-controller'
