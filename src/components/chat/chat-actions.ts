@@ -13,10 +13,10 @@ export async function createChatMessage(formData: FormData) {
     const chatId = formData.get('chatId') as string
     const userId = formData.get('userId') as string
 
-    if (!content || !chatId || !userId) {
+    if (!content || !chatId) {
       return {
         success: false,
-        error: 'Missing required fields: content, chatId, or userId',
+        error: 'Missing required fields: content or chatId',
       }
     }
 
@@ -38,10 +38,12 @@ export async function createChatMessage(formData: FormData) {
 
     // Get user info for real-time broadcast
     const payload = await getPayloadInstance()
-    const user = await payload.findByID({
-      collection: 'users',
-      id: userId,
-    })
+    const user = userId
+      ? await payload.findByID({
+          collection: 'users',
+          id: userId,
+        })
+      : null
 
     // Broadcast new message to all connected clients
     broadcastToChat(chatId, {
@@ -50,7 +52,7 @@ export async function createChatMessage(formData: FormData) {
         id: result.id,
         content: result.content,
         createdAt: result.createdAt,
-        userName: user?.name || 'Anonymous',
+        userName: userId ? user?.name || 'Anonymous' : 'Anonymous',
         role: 'remote', // Will be determined by client
       },
       timestamp: new Date().toISOString(),

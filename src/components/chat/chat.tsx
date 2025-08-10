@@ -89,7 +89,7 @@ export function Chat({ messages, chatId, userId, currentUserName }: ChatProps) {
       </CardContent>
 
       <CardFooter>
-        {chatId && userId ? (
+        {chatId ? (
           <ChatInput chatId={chatId} userId={userId} />
         ) : (
           <div className="text-gray-500 text-sm">Login required to send messages</div>

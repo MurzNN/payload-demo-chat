@@ -1,17 +1,17 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { createChatMessage } from '@/actions/chat-actions'
+import { createChatMessage } from '@/components/chat/chat-actions'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 
 interface ChatInputProps {
   chatId: string
-  userId: string
+  userId: string | null
   disabled?: boolean
 }
 
-export function ChatInput({ chatId, userId, disabled = false }: ChatInputProps) {
+export function ChatInput({ chatId, userId = null, disabled = false }: ChatInputProps) {
   const [isPending, setIsPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const formRef = useRef<HTMLFormElement>(null)
@@ -23,7 +23,7 @@ export function ChatInput({ chatId, userId, disabled = false }: ChatInputProps) 
 
     try {
       const result = await createChatMessage(formData)
-      
+
       if (result.success) {
         // Clear the form
         formRef.current?.reset()
@@ -49,8 +49,8 @@ export function ChatInput({ chatId, userId, disabled = false }: ChatInputProps) 
   return (
     <form ref={formRef} action={handleSubmit} className="space-y-4">
       <input type="hidden" name="chatId" value={chatId} />
-      <input type="hidden" name="userId" value={userId} />
-      
+      <input type="hidden" name="userId" value={userId ?? ''} />
+
       <div className="flex gap-2">
         <Textarea
           ref={textareaRef}
@@ -61,20 +61,12 @@ export function ChatInput({ chatId, userId, disabled = false }: ChatInputProps) 
           className="flex-1 min-h-[60px] resize-none"
           required
         />
-        <Button 
-          type="submit" 
-          disabled={disabled || isPending}
-          className="self-end"
-        >
+        <Button type="submit" disabled={disabled || isPending} className="self-end">
           {isPending ? 'Sending...' : 'Send'}
         </Button>
       </div>
-      
-      {error && (
-        <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
-          {error}
-        </div>
-      )}
+
+      {error && <div className="text-sm text-red-600 bg-red-50 p-2 rounded">{error}</div>}
     </form>
   )
 }

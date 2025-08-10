@@ -75,10 +75,6 @@ export class ChatController {
   }
 
   async postMessage(content: string): Promise<ChatMessage> {
-    if (!this.userId) {
-      throw new Error('ChatController: userId is required for posting messages')
-    }
-
     // Use AI service for content moderation if available
     if (this.aiService) {
       const moderationResult = await this.aiService.moderateContent(content)
@@ -91,7 +87,11 @@ export class ChatController {
       collection: 'chat-messages',
       data: {
         chat: this.chatId,
-        user: typeof this.userId === 'string' ? parseInt(this.userId, 10) : this.userId,
+        user: this.userId
+          ? typeof this.userId === 'string'
+            ? parseInt(this.userId, 10)
+            : this.userId
+          : null,
         content: content.trim(),
       },
     })) as ChatMessage

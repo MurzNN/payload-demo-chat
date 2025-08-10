@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { createChat } from '@/actions/chat-actions'
+import { createChat } from '@/components/chat/chat-actions'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 
@@ -16,7 +16,7 @@ export function CreateChatForm() {
 
     try {
       const result = await createChat(formData)
-      
+
       if (!result?.success) {
         setError(result?.error || 'Failed to create chat')
       }
@@ -31,7 +31,7 @@ export function CreateChatForm() {
   return (
     <Card className="p-4">
       <h3 className="font-semibold mb-3">Create New Chat</h3>
-      
+
       <form ref={formRef} action={handleSubmit} className="space-y-3">
         <div>
           <input
@@ -43,20 +43,12 @@ export function CreateChatForm() {
             required
           />
         </div>
-        
-        <Button 
-          type="submit" 
-          disabled={isPending}
-          className="w-full"
-        >
+
+        <Button type="submit" disabled={isPending} className="w-full">
           {isPending ? 'Creating...' : 'Create Chat'}
         </Button>
-        
-        {error && (
-          <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
-            {error}
-          </div>
-        )}
+
+        {error && <div className="text-sm text-red-600 bg-red-50 p-2 rounded">{error}</div>}
       </form>
     </Card>
   )
