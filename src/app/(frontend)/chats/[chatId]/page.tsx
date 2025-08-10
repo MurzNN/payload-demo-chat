@@ -3,18 +3,18 @@ import React from 'react'
 
 import { Chat } from '@/components/chat/chat'
 import { ChatList } from '@/components/chat/chat-list'
-import { getChatControllerFactory } from '@/services/service-container'
-import { getPayloadInstance } from '@/services/service-container'
+import { getContainer } from '@/container'
 import type { PaginatedDocs } from 'payload'
 import type { Chat as ChatType } from '@/payload-types'
+import { asValue } from 'awilix'
 
 export default async function Chats({ params }: { params: Promise<{ chatId: string }> }) {
   const { chatId } = await params
   console.log('Loading chat with id', chatId)
   const headers = await getHeaders()
 
-  // ✅ NEW: Use factory pattern following Alexey's approach
-  const payload = await getPayloadInstance()
+  const rootContainer = await getContainer()
+  const payload = rootContainer.cradle.payload
   const { user } = await payload.auth({ headers })
 
   // Parse chatId to number (Payload IDs are typically numbers)
@@ -23,13 +23,15 @@ export default async function Chats({ params }: { params: Promise<{ chatId: stri
     throw new Error(`Invalid chat ID: ${chatId}`)
   }
 
-  // ✅ NEW: Get factory with all dependencies auto-injected
-  const chatControllerFactory = await getChatControllerFactory()
+  // Create scoped container for this request
+  const ctxContainer = rootContainer.createScope()
+  ctxContainer.register({
+    ctxChatId: asValue(chatId),
+    ctxUserId: asValue(user?.id),
+  })
 
-  // ✅ NEW: Create scoped controller instance (like Alexey's get(user))
-  const chatController = chatControllerFactory.get(chatIdNum, user?.id)
-  await chatController.asyncInit() // Initialize user context
-
+  // Use lazy service loading - only initializes when first used
+  const chatController = ctxContainer.cradle.chatController
   const messages = await chatController.getMessages()
 
   const chats = await payload

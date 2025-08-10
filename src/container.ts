@@ -1,6 +1,6 @@
 import config from '@payload-config'
 import dotenv from 'dotenv'
-import { getPayload } from 'payload'
+import { getPayload, type Payload } from 'payload'
 import { asClass, asValue, createContainer, type AwilixContainer } from 'awilix'
 import { ChatSpammer } from './services/chat-spammer'
 import { ChatController } from './services/chat-controller'
@@ -132,14 +132,15 @@ class ContainerSingleton {
     container.register('systemUser', asValue(systemUser))
     // Task 1 end.
 
+    container.register('ctxChatId', asValue(undefined))
+    container.register('ctxUserId', asValue(undefined))
+
     container.register(
       'chatController',
       asClass(ChatController, {
         lifetime: 'TRANSIENT',
       }),
     )
-    container.register('ctxChatId', asValue(undefined))
-    container.register('ctxUserId', asValue(undefined))
     container.register(
       'chatSpammer',
       asClass(ChatSpammer, {

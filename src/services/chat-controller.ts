@@ -70,12 +70,12 @@ export class ChatController {
     return messages
   }
 
-  async postMessage(userId: number, content: string): Promise<void> {
+  async postMessage(content: string): Promise<void> {
     await this.payload.create({
       collection: 'chat-messages',
       data: {
         chat: this.ctxChatId,
-        user: userId,
+        user: this.ctxUserId,
         content: content,
       },
     })

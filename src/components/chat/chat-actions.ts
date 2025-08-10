@@ -1,11 +1,13 @@
 'use server'
 
-import { getChatControllerFactory, getPayloadInstance } from '@/services/service-container'
+import { headers as getHeaders } from 'next/headers.js'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 // Import the broadcast function
 import { broadcastToChat } from '@/app/api/chat/[chatId]/stream/route'
+import { getContainer } from '@/container'
+import { asValue } from 'awilix/lib/resolvers.js'
 
 export async function createChatMessage(formData: FormData) {
   try {
@@ -29,22 +31,23 @@ export async function createChatMessage(formData: FormData) {
       }
     }
 
-    // ✅ NEW: Use factory pattern following Alexey's approach
-    const chatControllerFactory = await getChatControllerFactory()
-    const chatController = chatControllerFactory.get(chatIdNum, userId)
-    await chatController.asyncInit()
+    const headers = await getHeaders()
+    const rootContainer = await getContainer()
+    const payload = rootContainer.cradle.payload
+    const { user } = await payload.auth({ headers })
+
+    // Create scoped container for this request
+    const ctxContainer = rootContainer.createScope()
+    ctxContainer.register({
+      ctxChatId: asValue(chatId),
+      ctxUserId: asValue(user?.id),
+    })
+
+    // Use lazy service loading - only initializes when first used
+    const chatController = ctxContainer.cradle.chatController
 
     const result = await chatController.postMessage(content)
-
-    // Get user info for real-time broadcast
-    const payload = await getPayloadInstance()
-    const user = userId
-      ? await payload.findByID({
-          collection: 'users',
-          id: userId,
-        })
-      : null
-
+    console.log(result)
     // Broadcast new message to all connected clients
     broadcastToChat(chatId, {
       type: 'new_message',
@@ -76,7 +79,8 @@ export async function createChatMessage(formData: FormData) {
 
 export async function createChat(formData: FormData) {
   try {
-    const payload = await getPayloadInstance()
+    const container = await getContainer()
+    const payload = container.cradle.payload
 
     const title = formData.get('title') as string
 
@@ -119,9 +123,20 @@ export async function deleteChatMessage(messageId: string, chatId: string) {
       }
     }
 
-    // ✅ NEW: Use factory pattern
-    const chatControllerFactory = await getChatControllerFactory()
-    const chatController = chatControllerFactory.get(chatIdNum)
+    const headers = await getHeaders()
+    const rootContainer = await getContainer()
+    const payload = rootContainer.cradle.payload
+    const { user } = await payload.auth({ headers })
+
+    // Create scoped container for this request
+    const ctxContainer = rootContainer.createScope()
+    ctxContainer.register({
+      ctxChatId: asValue(chatId),
+      ctxUserId: asValue(user?.id),
+    })
+
+    // Use lazy service loading - only initializes when first used
+    const chatController = ctxContainer.cradle.chatController
 
     await chatController.deleteMessage(messageId)
 
