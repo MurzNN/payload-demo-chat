@@ -1,11 +1,13 @@
 import { Payload } from 'payload'
 import { User, ChatMessage } from '@/payload-types'
 import { Message } from '@/types/chat'
+import { getContainer } from '@/container'
+import { asValue } from 'awilix/lib/resolvers.js'
 
 export class ChatController {
   private payload: Payload
-  private ctxChatId: number
-  private ctxUserId: string
+  private ctxChatId: string
+  private ctxUserId: string | null
 
   constructor({
     payload,
@@ -13,20 +15,35 @@ export class ChatController {
     ctxUserId,
   }: {
     payload: Payload
-    ctxChatId: number
-    ctxUserId: string
+    ctxChatId: string
+    ctxUserId: string | null
   }) {
     this.payload = payload
     this.ctxChatId = ctxChatId
     this.ctxUserId = ctxUserId
   }
 
-  async init() {
+  public static async get({
+    chatId,
+    userId,
+  }: {
+    chatId: string
+    userId: string | null
+  }): Promise<ChatController> {
+    const scope = (await getContainer()).createScope()
+    scope.register('ctxChatId', asValue(chatId))
+    scope.register('ctxUserId', asValue(userId))
+    const service = scope.build(ChatController)
+    await service.asyncInit()
+    return service
+  }
+
+  async asyncInit() {
     console.log('ChatController async init')
     // init logic
   }
 
-  async dispose() {
+  async asyncDispose() {
     // dispose logic
     console.log('ChatController async dispose')
   }
@@ -71,13 +88,30 @@ export class ChatController {
   }
 
   async postMessage(content: string): Promise<void> {
+    console.log('Posting message:', content)
     await this.payload.create({
       collection: 'chat-messages',
       data: {
-        chat: this.ctxChatId,
-        user: this.ctxUserId,
+        chat: parseInt(this.ctxChatId, 10),
+        user: this.ctxUserId ? parseInt(this.ctxUserId, 10) : null,
         content: content,
       },
     })
+    setTimeout(() => {
+      this.postResponse(content)
+    }, 1000)
+  }
+
+  async postResponse(userMessage: string): Promise<void> {
+    console.log('Posting response for message:', userMessage)
+    await this.payload.create({
+      collection: 'chat-messages',
+      data: {
+        chat: parseInt(this.ctxChatId, 10),
+        user: 1,
+        content: 'Response to: ' + userMessage,
+      },
+    })
+    // @todo Send the message to the socket.
   }
 }

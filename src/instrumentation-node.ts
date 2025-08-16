@@ -8,6 +8,6 @@ declare global {
 if (!globalThis.__appBootstrapped) {
   console.log('Executing Next.js Node instrumentation...')
   globalThis.__appBootstrapped = true
-  await initContainerManager()
+  // await initContainerManager()
   console.log('Next.js Node instrumentation executed.')
 }

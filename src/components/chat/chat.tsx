@@ -11,8 +11,8 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { ChatInput } from './chat-input'
-import { useRealtimeMessages } from '@/hooks'
 import type { Message } from '@/types/chat'
+import { useMessaging } from '../../hooks/messsaging'
 
 interface ChatProps {
   messages: Message[]
@@ -21,29 +21,11 @@ interface ChatProps {
   currentUserName?: string
 }
 
-export function Chat({ messages, chatId, userId, currentUserName }: ChatProps) {
-  const [realtimeMessages, setRealtimeMessages] = useState<Message[]>(messages)
-  const { connectionStatus, onNewMessage } = useRealtimeMessages(chatId || '', currentUserName)
-
-  // Update messages when initial messages change
-  useEffect(() => {
-    setRealtimeMessages(messages)
-  }, [messages])
-
-  // Set up real-time message handler
-  useEffect(() => {
-    if (chatId && currentUserName) {
-      onNewMessage((newMessage) => {
-        setRealtimeMessages((prev) => {
-          // Check if message already exists (avoid duplicates)
-          if (prev.some((msg) => msg.id === newMessage.id)) {
-            return prev
-          }
-          return [...prev, newMessage]
-        })
-      })
-    }
-  }, [chatId, currentUserName, onNewMessage])
+export function Chat({ messagesInitial, chatId, userId, currentUserName }: ChatProps) {
+  // const [messages, setMessages] = useState<Message[]>(messagesInitial)
+  // const { connectionStatus, onNewMessage } = useRealtimeMessages(chatId || '', currentUserName)
+  let connectionStatus = 'connected'
+  const [messages, sendMessage] = useMessaging(messagesInitial)
 
   return (
     <Card className="@container/card to-card">
@@ -71,7 +53,7 @@ export function Chat({ messages, chatId, userId, currentUserName }: ChatProps) {
       </CardHeader>
       <CardContent>
         <div className="space-y-3 max-h-96 overflow-y-auto">
-          {realtimeMessages.map((message) => (
+          {messages.map((message) => (
             <div
               key={message.id}
               className={`flex w-max max-w-[75%] flex-col gap-2 rounded-lg px-3 py-2 text-sm ${
@@ -90,7 +72,7 @@ export function Chat({ messages, chatId, userId, currentUserName }: ChatProps) {
 
       <CardFooter>
         {chatId ? (
-          <ChatInput chatId={chatId} userId={userId} />
+          <ChatInput chatId={chatId} userId={userId} sendMessage={sendMessage} />
         ) : (
           <div className="text-gray-500 text-sm">Login required to send messages</div>
         )}
