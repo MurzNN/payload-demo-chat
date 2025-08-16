@@ -1,41 +1,37 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { createChatMessage } from '@/components/chat/chat-actions'
+// import { createChatMessage } from '@/components/chat/chat-actions'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 
 interface ChatInputProps {
   chatId: string
   userId: string | null
+  handleSubmit: (formData: FormData) => void
   disabled?: boolean
 }
 
-export function ChatInput({ chatId, userId = null, disabled = false }: ChatInputProps) {
+export function ChatInput({
+  chatId,
+  userId = null,
+  disabled = false,
+  sendMessage,
+}: ChatInputProps) {
   const [isPending, setIsPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const formRef = useRef<HTMLFormElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const handleSubmit = async (formData: FormData) => {
-    setIsPending(true)
-    setError(null)
-
-    try {
-      const result = await createChatMessage(formData)
-
-      if (result.success) {
-        // Clear the form
-        formRef.current?.reset()
-        textareaRef.current?.focus()
-      } else {
-        setError(result.error || 'Failed to send message')
-      }
-    } catch (err) {
-      setError('An unexpected error occurred')
-    } finally {
-      setIsPending(false)
+    console.log('Submitting message:', formData)
+    const message = {
+      chatId: chatId,
+      content: formData.get('content') as string,
     }
+    sendMessage(message)
+    formRef.current?.reset()
+    textareaRef.current?.focus()
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

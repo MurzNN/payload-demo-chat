@@ -1,5 +1,4 @@
 import React from 'react'
-import './styles.css'
 import '@/styles/globals.css'
 import { Badge } from '@/components/ui/badge'
 export const metadata = {
