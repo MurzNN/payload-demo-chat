@@ -12,16 +12,18 @@ export function handleWebSocketConnection({
   request,
   server,
   userId,
+  userName,
 }: {
   client: WebSocket
   request: IncomingMessage
   server: WebSocketServer
   userId: string | null
+  userName?: string
 }) {
   if (userId) {
-    console.log(`WebSocket connection from Payload user ${userId}`)
+    console.log(`✅ WebSocket connection from authenticated user ${userId} (${userName || 'Unknown'})`)
   } else {
-    console.log('WebSocket connection from an unauthenticated user')
+    console.log('⚠️ WebSocket connection from unauthenticated user')
   }
 
   // Register the server with the manager if not already done
@@ -37,7 +39,7 @@ export function handleWebSocketConnection({
         case 'subscribe':
           if (parsedMessage.chatId) {
             wsManager.addSubscription(parsedMessage.chatId, client)
-            console.log(`Client subscribed to chat: ${parsedMessage.chatId}`)
+            console.log(`Client ${userId || 'anonymous'} subscribed to chat: ${parsedMessage.chatId}`)
 
             // Notify other clients in the chat
             wsManager.broadcastToChat(
@@ -46,7 +48,7 @@ export function handleWebSocketConnection({
                 type: 'system_message',
                 chatId: parsedMessage.chatId,
                 userName: 'System',
-                content: 'A user joined the chat',
+                content: `${userName || 'A user'} joined the chat`,
                 createdAt: new Date().toISOString(),
               },
               client,
@@ -68,7 +70,7 @@ export function handleWebSocketConnection({
         case 'unsubscribe':
           if (parsedMessage.chatId) {
             wsManager.removeSubscription(parsedMessage.chatId, client)
-            console.log(`Client unsubscribed from chat: ${parsedMessage.chatId}`)
+            console.log(`Client ${userId || 'anonymous'} unsubscribed from chat: ${parsedMessage.chatId}`)
 
             // Notify other clients in the chat
             wsManager.broadcastToChat(
@@ -77,7 +79,7 @@ export function handleWebSocketConnection({
                 type: 'system_message',
                 chatId: parsedMessage.chatId,
                 userName: 'System',
-                content: 'A user left the chat',
+                content: `${userName || 'A user'} left the chat`,
                 createdAt: new Date().toISOString(),
               },
               client,
@@ -87,22 +89,22 @@ export function handleWebSocketConnection({
 
         case 'chat_message':
           if (parsedMessage.chatId && parsedMessage.content) {
-            console.log(`Processing chat message for chat: ${parsedMessage.chatId}`)
+            console.log(`Processing chat message from user ${userId || 'anonymous'} for chat: ${parsedMessage.chatId}`)
 
-            // Save message to database
+            // Save message to database using authenticated user info
             const container = await getContainer()
             const chatController = await container.cradle.getChatController({
               chatId: parsedMessage.chatId,
-              userId: parsedMessage.userId || null,
+              userId: userId, // Use authenticated userId
             })
             await chatController.postMessage(parsedMessage.content)
 
-            // Prepare message for broadcasting
+            // Prepare message for broadcasting with authenticated user info
             const messageToSend: WSMessage = {
               type: 'chat_message',
               chatId: parsedMessage.chatId,
-              userId: parsedMessage.userId,
-              userName: parsedMessage.userName || 'User',
+              userId: userId || undefined, // Convert null to undefined for type compatibility
+              userName: userName || parsedMessage.userName || 'Anonymous User',
               content: parsedMessage.content,
               createdAt: new Date().toISOString(),
             }
