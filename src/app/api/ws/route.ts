@@ -9,11 +9,13 @@ export function GET() {
   return new Response('Upgrade Required', { status: 426, headers })
 }
 
-export function SOCKET(
-  client: WebSocket,
-  _request: IncomingMessage,
-  server: WebSocketServer,
-  args: any,
-) {
-  return handleWebSocketConnection(client, _request, server, args)
+export function SOCKET(client: WebSocket, request: IncomingMessage, server: WebSocketServer) {
+  const payloadUserId = '0'
+  // @todo Detect the current user from the Payload session.
+  return handleWebSocketConnection({
+    client,
+    request,
+    server,
+    userId: payloadUserId,
+  })
 }

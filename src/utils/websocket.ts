@@ -7,13 +7,22 @@ import { WebSocketManager } from '../services/websocket-manager'
 // Get the WebSocket manager instance
 const wsManager = WebSocketManager.getInstance()
 
-export function handleWebSocketConnection(
-  client: WebSocket,
-  _request: IncomingMessage,
-  server: WebSocketServer,
-  args: any,
-) {
-  console.log('WebSocket connection established with args:', args)
+export function handleWebSocketConnection({
+  client,
+  request,
+  server,
+  userId,
+}: {
+  client: WebSocket
+  request: IncomingMessage
+  server: WebSocketServer
+  userId: string | null
+}) {
+  if (userId) {
+    console.log(`WebSocket connection from Payload user ${userId}`)
+  } else {
+    console.log('WebSocket connection from an unauthenticated user')
+  }
 
   // Register the server with the manager if not already done
   wsManager.setServer(server)
