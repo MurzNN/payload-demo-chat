@@ -15,7 +15,7 @@ import type { Message } from '@/types/chat'
 import { useMessaging } from '../../hooks/messsaging'
 
 interface ChatProps {
-  messages: Message[]
+  messagesInitial: Message[]
   chatId?: string
   userId?: string
   currentUserName?: string
@@ -24,8 +24,7 @@ interface ChatProps {
 export function Chat({ messagesInitial, chatId, userId, currentUserName }: ChatProps) {
   // const [messages, setMessages] = useState<Message[]>(messagesInitial)
   // const { connectionStatus, onNewMessage } = useRealtimeMessages(chatId || '', currentUserName)
-  let connectionStatus = 'connected'
-  const [messages, sendMessage] = useMessaging(messagesInitial)
+  const [messages, sendMessage, connectionStatus] = useMessaging(messagesInitial, chatId, userId)
 
   return (
     <Card className="@container/card to-card">

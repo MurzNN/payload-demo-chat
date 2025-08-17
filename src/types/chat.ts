@@ -1,17 +1,19 @@
 export interface Message {
-  id: string
+  id?: string
   content: string
   createdAt: string
   userName: string
   role: 'own' | 'remote'
 }
 
-export interface SSEMessage {
-  type: 'connected' | 'new_message' | 'message_deleted'
-  message?: Message
-  messageId?: string
+export interface WSMessage {
+  type: 'subscribe' | 'unsubscribe' | 'chat_message' | 'system_message'
+  id?: string
   chatId?: string
-  timestamp: string
+  userId?: string
+  content?: string
+  userName?: string
+  createdAt?: string
 }
 
 export interface ChatConnection {

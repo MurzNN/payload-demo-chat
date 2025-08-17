@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { createChat } from '@/components/chat/chat-actions'
+// import { createChat } from '@/components/chat/chat-actions'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 
@@ -14,18 +14,18 @@ export function CreateChatForm() {
     setIsPending(true)
     setError(null)
 
-    try {
-      const result = await createChat(formData)
+    // try {
+    //   const result = await createChat(formData)
 
-      if (!result?.success) {
-        setError(result?.error || 'Failed to create chat')
-      }
-      // If successful, redirect happens automatically in the action
-    } catch (err) {
-      setError('An unexpected error occurred')
-    } finally {
-      setIsPending(false)
-    }
+    //   if (!result?.success) {
+    //     setError(result?.error || 'Failed to create chat')
+    //   }
+    //   // If successful, redirect happens automatically in the action
+    // } catch (err) {
+    //   setError('An unexpected error occurred')
+    // } finally {
+    //   setIsPending(false)
+    // }
   }
 
   return (

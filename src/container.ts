@@ -4,6 +4,7 @@ import { getPayload, type Payload } from 'payload'
 import { asClass, asValue, createContainer, type AwilixContainer } from 'awilix'
 import { ChatSpammer } from './services/chat-spammer'
 import { ChatController } from './services/chat-controller'
+import { WebSocketManager } from './services/websocket-manager'
 // Direct global reference - more reliable than Symbol in Next.js
 declare global {
   var __appContainerController: ContainerController | undefined
@@ -74,6 +75,10 @@ export class ContainerController {
     dotenv.config()
     const payload = await getPayload({ config })
     container.register('payload', asValue(payload))
+
+    // Register WebSocket manager as singleton
+    const wsManager = WebSocketManager.getInstance()
+    container.register('webSocketManager', asValue(wsManager))
 
     container.register('getChatController', asValue(ChatController.get))
 

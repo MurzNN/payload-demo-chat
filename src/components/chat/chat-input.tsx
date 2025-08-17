@@ -7,8 +7,8 @@ import { Textarea } from '@/components/ui/textarea'
 
 interface ChatInputProps {
   chatId: string
-  userId: string | null
-  handleSubmit: (formData: FormData) => void
+  userId?: string | null
+  sendMessage: (content: string) => void
   disabled?: boolean
 }
 
@@ -25,11 +25,10 @@ export function ChatInput({
 
   const handleSubmit = async (formData: FormData) => {
     console.log('Submitting message:', formData)
-    const message = {
-      chatId: chatId,
-      content: formData.get('content') as string,
-    }
-    sendMessage(message)
+    const content = formData.get('content') as string
+    if (!content?.trim()) return
+
+    sendMessage(content)
     formRef.current?.reset()
     textareaRef.current?.focus()
   }
