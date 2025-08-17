@@ -1,5 +1,4 @@
 import { withPayload } from '@payloadcms/next/withPayload'
-import { withNextWs } from 'next-ws/next'
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -16,5 +15,4 @@ const nextConfig = {
   },
 }
 
-// Apply both PayloadCMS and WebSocket plugins
-export default withNextWs(withPayload(nextConfig, { devBundleServerPackages: false }))
+export default withPayload(nextConfig, { devBundleServerPackages: false })
