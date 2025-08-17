@@ -10,7 +10,11 @@ export function GET() {
   return new Response('Upgrade Required', { status: 426, headers })
 }
 
-export function SOCKET(client: WebSocket, request: IncomingMessage, server: WebSocketServer) {
+export default function SOCKET(
+  client: WebSocket,
+  request: IncomingMessage,
+  server: WebSocketServer,
+) {
   const mockRequest = {
     headers: request.headers as Record<string, string>,
     cookies: parseCookies(request.headers.cookie || ''),

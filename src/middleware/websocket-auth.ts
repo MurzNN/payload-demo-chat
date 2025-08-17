@@ -14,8 +14,19 @@ export async function validateWebSocketAuth(request: {
   url?: string
 }): Promise<WebSocketAuthResult> {
   try {
+    // Handle different header types properly
+    let headers: Headers
+    if (request.headers instanceof Headers) {
+      headers = request.headers
+    } else {
+      headers = new Headers()
+      Object.entries(request.headers).forEach(([key, value]) => {
+        if (value) headers.set(key, value)
+      })
+    }
+
     const mockRequest = {
-      headers: new Headers(request.headers),
+      headers,
       cookies: request.cookies || {},
       url: request.url || '',
     }
