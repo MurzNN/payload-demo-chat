@@ -6,34 +6,21 @@ import { ChatList } from '@/components/chat/chat-list'
 import { getContainer } from '@/container'
 import type { PaginatedDocs } from 'payload'
 import type { Chat as ChatType } from '@/payload-types'
-import { asValue } from 'awilix'
 
 export default async function Chats({ params }: { params: Promise<{ chatId: string }> }) {
   const { chatId } = await params
   console.log('Loading chat with id', chatId)
   const headers = await getHeaders()
 
-  const rootContainer = await getContainer()
-  const payload = rootContainer.cradle.payload
+  const container = await getContainer()
+  const payload = container.cradle.payload
   const { user } = await payload.auth({ headers })
-
-  // Parse chatId to number (Payload IDs are typically numbers)
-  const chatIdNum = parseInt(chatId, 10)
-  if (isNaN(chatIdNum)) {
-    throw new Error(`Invalid chat ID: ${chatId}`)
-  }
-
-  // Create scoped container for this request
-  const ctxContainer = rootContainer.createScope()
-  ctxContainer.register({
-    ctxChatId: asValue(chatId),
-    ctxUserId: asValue(user?.id),
+  console.log(' loading controller for chatId:', chatId, 'userId:', user?.id?.toString())
+  const chatController = await container.cradle.getChatController({
+    chatId: chatId,
+    userId: user?.id?.toString() || '123',
   })
-
-  // Use lazy service loading - only initializes when first used
-  const chatController = ctxContainer.cradle.chatController
   const messages = await chatController.getMessages()
-
   const chats = await payload
     .find({
       collection: 'chats',
@@ -48,7 +35,7 @@ export default async function Chats({ params }: { params: Promise<{ chatId: stri
         </div>
         <div className="col-span-10">
           <Chat
-            messages={messages}
+            messagesInitial={messages}
             chatId={chatId}
             userId={user?.id?.toString()}
             currentUserName={user?.name || undefined}
