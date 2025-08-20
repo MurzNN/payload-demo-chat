@@ -1,5 +1,8 @@
 import type { WebSocketServer, WebSocket } from 'ws'
 import type { WSMessage } from '@/types/chat'
+import type { IncomingMessage } from 'node:http'
+import { User } from '@/payload-types'
+import { getContainer } from '@/container'
 
 // Declare global WebSocket manager
 declare global {
@@ -25,6 +28,145 @@ export class WebSocketManager {
   setServer(server: WebSocketServer) {
     this.server = server
     console.log('WebSocket server registered with WebSocketManager')
+  }
+
+  handleConnection({
+    client,
+    request,
+    server,
+    user,
+  }: {
+    client: WebSocket
+    request: IncomingMessage
+    server: WebSocketServer
+    user: User | null
+  }) {
+    // Register the server with the manager if not already done
+    if (!this.server) {
+      this.setServer(server)
+    }
+
+    // Handle incoming messages
+    client.on('message', async (message: Buffer) => {
+      try {
+        console.log('Received message:', message.toString())
+        const parsedMessage: WSMessage = JSON.parse(message.toString())
+
+        switch (parsedMessage.type) {
+          case 'subscribe':
+            if (parsedMessage.chatId) {
+              this.addSubscription(parsedMessage.chatId, client)
+              console.log(
+                `Client ${user?.id || 'anonymous'} subscribed to chat: ${parsedMessage.chatId}`,
+              )
+
+              // Notify other clients in the chat
+              this.broadcastToChat(
+                parsedMessage.chatId,
+                {
+                  type: 'system_message',
+                  chatId: parsedMessage.chatId,
+                  userName: 'System',
+                  content: `${user?.name || 'A user'} joined the chat`,
+                  createdAt: new Date().toISOString(),
+                },
+                client,
+              )
+
+              // Send welcome message to the new client
+              client.send(
+                JSON.stringify({
+                  type: 'system_message',
+                  chatId: parsedMessage.chatId,
+                  userName: 'System',
+                  content: `Welcome to the chat! There are ${this.getChatSubscriberCount(parsedMessage.chatId) - 1} other users online`,
+                  createdAt: new Date().toISOString(),
+                }),
+              )
+            }
+            break
+
+          case 'unsubscribe':
+            if (parsedMessage.chatId) {
+              this.removeSubscription(parsedMessage.chatId, client)
+              console.log(
+                `Client ${user?.id || 'anonymous'} unsubscribed from chat: ${parsedMessage.chatId}`,
+              )
+
+              // Notify other clients in the chat
+              this.broadcastToChat(
+                parsedMessage.chatId,
+                {
+                  type: 'system_message',
+                  chatId: parsedMessage.chatId,
+                  userName: 'System',
+                  content: `${user?.name || 'A user'} left the chat`,
+                  createdAt: new Date().toISOString(),
+                },
+                client,
+              )
+            }
+            break
+
+          case 'chat_message':
+            if (parsedMessage.chatId && parsedMessage.content) {
+              console.log(
+                `Processing chat message from user ${user?.id || 'anonymous'} for chat: ${parsedMessage.chatId}`,
+              )
+
+              // Save message to database using authenticated user info
+              const container = await getContainer()
+              const chatController = await container.cradle.getChatController({
+                chatId: parsedMessage.chatId,
+                userId: user?.id, // Use authenticated userId
+              })
+              await chatController.postMessage(parsedMessage.content)
+
+              // Prepare message for broadcasting with authenticated user info
+              const messageToSend: WSMessage = {
+                type: 'chat_message',
+                chatId: parsedMessage.chatId,
+                userId: user?.id || undefined, // Convert null to undefined for type compatibility
+                userName: user?.name || parsedMessage.userName || 'Anonymous User',
+                content: parsedMessage.content,
+                createdAt: new Date().toISOString(),
+              }
+
+              // Send confirmation back to sender
+              client.send(JSON.stringify(messageToSend))
+
+              // Broadcast the message to all other clients in the chat
+              this.broadcastToChat(parsedMessage.chatId, messageToSend, client)
+            }
+            break
+
+          default:
+            console.warn('Unknown message type:', parsedMessage.type)
+        }
+      } catch (error) {
+        console.error('Error processing message:', error)
+        client.send(
+          JSON.stringify({
+            type: 'system_message',
+            userName: 'System',
+            content: 'Error processing your message',
+            timestamp: new Date().toISOString(),
+          }),
+        )
+      }
+    })
+
+    // Handle client disconnect
+    client.on('close', () => {
+      console.log('Client disconnected')
+      this.removeClientFromAllChats(client)
+    })
+
+    // Return cleanup function for when client disconnects
+    return () => {
+      console.log('Cleaning up websocket client connection')
+      this.removeClientFromAllChats(client)
+    }
   }
 
   addSubscription(chatId: string, client: WebSocket) {
@@ -67,8 +209,6 @@ export class WebSocketManager {
   }
 
   broadcastToChat(chatId: string, message: WSMessage, excludeClient?: WebSocket) {
-    console.log(JSON.stringify(chatId))
-    console.log(this.chatSubscriptions)
     const chatClients = this.chatSubscriptions.get(chatId)
     console.log(
       `Attempting to broadcast to chat ${chatId}. Found ${chatClients?.size || 0} subscribers`,
