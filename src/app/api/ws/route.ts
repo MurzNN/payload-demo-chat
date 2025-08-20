@@ -1,7 +1,8 @@
-import { validateWebSocketAuth } from '@/middleware/websocket-auth'
-import { handleWebSocketConnection } from '@/utils/websocket'
-import type { WebSocket, WebSocketServer } from 'ws'
+import { getContainer } from '@/container'
+import config from '@payload-config'
 import type { IncomingMessage } from 'node:http'
+import { AuthResult } from 'node_modules/payload/dist/auth/operations/auth'
+import { getPayload } from 'payload'
 
 export function GET() {
   const headers = new Headers()
@@ -11,60 +12,32 @@ export function GET() {
 }
 
 export function SOCKET(
-  client: WebSocket,
-  request: IncomingMessage,
-  server: WebSocketServer,
-  _context: { params: Record<string, string | string[]> },
+  client: import('ws').WebSocket,
+  request: import('http').IncomingMessage,
+  server: import('ws').WebSocketServer,
+  context: { params: Record<string, string | string[]> },
 ) {
-  const mockRequest = {
-    headers: request.headers as Record<string, string>,
-    cookies: parseCookies(request.headers.cookie || ''),
-    url: request.url || '',
-  }
-
-  validateWebSocketAuth(mockRequest)
-    .then(({ user, success }) => {
-      const userId = user?.id?.toString() || null
-      const userName = user?.name || user?.email || 'Anonymous'
-
-      if (success) {
-        console.log(`✅ WebSocket connection established for authenticated user: ${userId} (${userName})`)
-      } else {
-        console.log('⚠️ WebSocket connection established for anonymous user')
-      }
-
-      return handleWebSocketConnection({
-        client,
-        request,
-        server,
-        userId,
-        userName,
-      })
+  payloadAuthByHttpRequest(request).then(async ({ user }) => {
+    const container = await getContainer()
+    container.cradle.webSocketManager.handleConnection({
+      client,
+      request,
+      server,
+      user,
     })
-    .catch((error) => {
-      console.error('❌ WebSocket authentication failed:', error)
-      return handleWebSocketConnection({
-        client,
-        request,
-        server,
-        userId: null,
-        userName: 'Anonymous',
-      })
-    })
-}
-
-function parseCookies(cookieString: string): Record<string, string> {
-  const cookies: Record<string, string> = {}
-
-  if (!cookieString) return cookies
-
-  cookieString.split(';').forEach((cookie) => {
-    const [name, value] = cookie.trim().split('=')
-    if (name && value) {
-      cookies[name] = decodeURIComponent(value)
-    }
   })
-
-  return cookies
 }
 
+async function payloadAuthByHttpRequest(request: IncomingMessage): Promise<AuthResult> {
+  // We need to convert Node.js headers to the Next.js headers format.
+  const headers = new Headers()
+  Object.entries(request.headers).forEach(([key, value]) => {
+    headers.set(key, value as string)
+  })
+  const payload = await getPayload({ config })
+  const authResult = await payload.auth({
+    canSetHeaders: false,
+    headers,
+  })
+  return authResult
+}
