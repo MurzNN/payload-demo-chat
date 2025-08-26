@@ -1,6 +1,4 @@
-import config from '@payload-config'
-import { headers } from 'next/headers'
-import { getPayload } from 'payload'
+import { getContainer } from '@/container'
 
 export function GET() {
   const headers = new Headers()
@@ -15,6 +13,6 @@ export async function UPGRADE(
   request: import('next/server').NextRequest,
   context: import('next-ws/server').RouteContext<'/api/ws'>,
 ) {
-  await headers()
-  const payload = await getPayload({ config }) // HERE IS THE PROBLEM!!!
+  const c = await getContainer()
+  await c.cradle.webSocketManager.handleConnection({ client, server, request, context })
 }
