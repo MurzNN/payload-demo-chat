@@ -1,8 +1,14 @@
-import type { WebSocketServer, WebSocket } from 'ws'
+import type { WebSocketServer, WebSocket as WSWebSocket } from 'ws'
 import type { WSMessage } from '@/types/chat'
 import type { IncomingMessage } from 'node:http'
-import { User } from '@/payload-types'
 import { getContainer } from '@/container'
+import { headers } from 'next/headers'
+import { User } from '@/payload-types'
+
+interface WebSocketWithPayloadUser extends WSWebSocket {
+  payloadUser?: User | null
+}
+type WebSocket = WebSocketWithPayloadUser
 
 // Declare global WebSocket manager
 declare global {
@@ -30,21 +36,26 @@ export class WebSocketManager {
     console.log('WebSocket server registered with WebSocketManager')
   }
 
-  handleConnection({
+  async handleConnection({
     client,
-    request,
     server,
-    user,
+    request,
+    context,
   }: {
     client: WebSocket
-    request: IncomingMessage
     server: WebSocketServer
-    user: User | null
+    request: IncomingMessage
+    context: import('next-ws/server').RouteContext<'/api/ws'>
   }) {
     // Register the server with the manager if not already done
     if (!this.server) {
       this.setServer(server)
     }
+
+    const c = await getContainer()
+    const { user } = await c.cradle.payload.auth({ headers: await headers() })
+    client = client as WebSocket & { payloadUser: User | null }
+    client.payloadUser = user
 
     // Handle incoming messages
     client.on('message', async (message: Buffer) => {
